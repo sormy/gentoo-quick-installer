@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ##
 # GENTOO QUICK INSTALLER
@@ -17,6 +17,25 @@
 # SSH_PUBLIC_KEY - ssh public key, pass contents of `cat ~/.ssh/id_rsa.pub` for example
 # ROOT_PASSWORD - root password, only SSH key-based authentication will work if not set
 ##
+
+# Sets up EFI
+# echo 'Is this an EFI computer? [Y/n]'
+# read
+# if [[ $REPLY =~ .*n.* ]]
+# then
+# EFI=false
+# else
+# EFI=true
+# fi
+
+echo 'Are you installing Gentoo on an NVMe drive? [Y/n]'
+read
+if [[ $REPLY =~ .*n.* ]]
+then
+NVME='p'
+else
+NVME=''
+fi
 
 set -e
 
@@ -58,25 +77,25 @@ END
 
 echo "### Formatting partitions..."
 
-yes | mkfs.ext4 ${TARGET_DISK}1
-yes | mkswap ${TARGET_DISK}2
-yes | mkfs.ext4 ${TARGET_DISK}3
+yes | mkfs.ext4 ${TARGET_DISK}${NVME}1
+yes | mkswap ${TARGET_DISK}${NVME}2
+yes | mkfs.ext4 ${TARGET_DISK}${NVME}3
 
 echo "### Labeling partitions..."
 
-e2label ${TARGET_DISK}1 boot
-swaplabel ${TARGET_DISK}2 -L swap
-e2label ${TARGET_DISK}3 root
+e2label ${TARGET_DISK}${NVME}1 boot
+swaplabel ${TARGET_DISK}${NVME}2 -L swap
+e2label ${TARGET_DISK}${NVME}3 root
 
 echo "### Mounting partitions..."
 
-swapon ${TARGET_DISK}2
+swapon ${TARGET_DISK}${NVME}2
 
 mkdir -p /mnt/gentoo
-mount ${TARGET_DISK}3 /mnt/gentoo
+mount ${TARGET_DISK}${NVME}3 /mnt/gentoo
 
 mkdir -p /mnt/gentoo/boot
-mount ${TARGET_DISK}1 /mnt/gentoo/boot
+mount ${TARGET_DISK}${NVME}1 /mnt/gentoo/boot
 
 echo "### Setting work directory..."
 
