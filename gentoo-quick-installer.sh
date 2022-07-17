@@ -138,12 +138,12 @@ END
 
 echo "### Mounting proc/sys/dev..."
 
-mount -t proc none /mnt/gentoo/proc
-mount -t sysfs none /mnt/gentoo/sys
+mount --types proc /proc /mnt/gentoo/proc
+mount --rbind /sys /mnt/gentoo/sys
 mount --rbind /dev /mnt/gentoo/dev
-mount -o bind /dev/pts /mnt/gentoo/dev/pts
-mount -o bind /dev/shm /mnt/gentoo/dev/shm
 mount --bind /run /mnt/gentoo/run
+
+echo "### Fixing possible LiveCD issues..."
 test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
 mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm
 chmod 1777 /dev/shm /run/shm
