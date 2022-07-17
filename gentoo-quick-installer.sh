@@ -23,11 +23,11 @@ set -e
 GENTOO_MIRROR="http://distfiles.gentoo.org"
 
 GENTOO_ARCH="amd64"
-GENTOO_STAGE3="amd64"
+GENTOO_STAGE3="	amd64-hardened-nomultilib-openrc"
 
-TARGET_DISK=/dev/sda
+TARGET_DISK=/dev/vda
 
-TARGET_BOOT_SIZE=100M
+TARGET_BOOT_SIZE=256M
 TARGET_SWAP_SIZE=1G
 
 GRUB_PLATFORMS=pc
@@ -107,7 +107,7 @@ fi
 echo "### Installing kernel configuration..."
 
 mkdir -p /mnt/gentoo/etc/kernels
-cp -v /etc/kernels/* /mnt/gentoo/etc/kernels
+#cp -v /etc/kernels/* /mnt/gentoo/etc/kernels
 
 echo "### Copying network options..."
 
@@ -145,30 +145,37 @@ source /etc/profile
 
 echo "### Installing portage..."
 
+mv /etc/portage/make.conf /etc/portage/default
+mkdir /etc/portage/make.conf
+mv /etc/portage/default /etc/portage/make.conf
+echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\""
 mkdir -p /etc/portage/repos.conf
 cp -f /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 emerge-webrsync
 
-echo "### Installing kernel sources..."
+echo "### Installing kernel binary..."
 
-emerge sys-kernel/gentoo-sources
+echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
 
 if [ "$USE_LIVECD_KERNEL" = 0 ]; then
     echo "### Installing kernel..."
-
+    
+    echo "sys-kernel/gentoo-kernel-bin ~amd64" >> /etc/portage/package.accept_keywords/kernel
+    echo "virtual/dist-kernel ~amd64" >> /etc/portage/package.accept_keywords/kernel
     echo "sys-kernel/genkernel -firmware" > /etc/portage/package.use/genkernel
     echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use/genkernel
+    emerge -g sys-kernel/linux-firmware installkernel-gentoo
+    emerge -g virtual/dist-kernel sys-kernel/gentoo-kernel-bin
+    emerge -g sys-kernel/genkernel
 
-    emerge sys-kernel/genkernel
-
-    genkernel all --kernel-config=$(find /etc/kernels -type f -iname 'kernel-config-*' | head -n 1)
+#    genkernel all --kernel-config=$(find /etc/kernels -type f -iname 'kernel-config-*' | head -n 1)
 fi
 
 echo "### Installing bootloader..."
 
-emerge grub
+emerge -g grub
 
-cat >> /etc/portage/make.conf << IEND
+cat >> /etc/portage/make.conf/default << IEND
 
 # added by gentoo installer
 GRUB_PLATFORMS="$GRUB_PLATFORMS"
