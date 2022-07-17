@@ -177,7 +177,6 @@ if [ "$USE_LIVECD_KERNEL" = 0 ]; then
     
     emerge sys-kernel/linux-firmware installkernel-gentoo
     emerge virtual/dist-kernel sys-kernel/gentoo-kernel-bin
-    emerge sys-kernel/genkernel
 fi
 
 echo "### Installing bootloader..."
