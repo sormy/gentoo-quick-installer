@@ -16,6 +16,12 @@
 # USE_LIVECD_KERNEL - 1 to use livecd kernel (saves time) or 0 to build kernel (takes time)
 # SSH_PUBLIC_KEY - ssh public key, pass contents of `cat ~/.ssh/id_rsa.pub` for example
 # ROOT_PASSWORD - root password, only SSH key-based authentication will work if not set
+#
+# livecd kernel with root password
+# USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+#
+# Compiled kernel with ssh public key
+# USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
 ##
 
 set -e
@@ -149,20 +155,18 @@ source /etc/profile
 
 echo "### Installing portage..."
 
-mv /etc/portage/make.conf /etc/portage/default
-mkdir /etc/portage/make.conf
-mv /etc/portage/default /etc/portage/make.conf
-echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\""
 mkdir -p /etc/portage/repos.conf
 cp -f /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 emerge-webrsync
+mv /etc/portage/make.conf /etc/portage/default
+mkdir /etc/portage/make.conf
+mv /etc/portage/default /etc/portage/make.conf
+echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\"" >> /etc/portage/make.conf/binhost
 echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
 emerge -G eix
 eix-sync
 
 echo "### Installing kernel binary..."
-
-echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
 
 if [ "$USE_LIVECD_KERNEL" = 0 ]; then
     echo "### Installing kernel..."
