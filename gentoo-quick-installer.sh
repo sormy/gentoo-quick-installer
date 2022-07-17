@@ -205,7 +205,7 @@ echo "### Configuring network..."
 
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
-emerge -g net-misc/dhcpcd
+emerge net-misc/dhcpcd
 
 if [ -z "$ROOT_PASSWORD" ]; then
     echo "### Removing root password..."
