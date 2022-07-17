@@ -11,17 +11,20 @@
 # export OPTION2=VALUE2
 # ./gentoo-quick-installer.sh
 #
+# livecd kernel with root password
+# USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+#
+# Gentoo's binary kernel with ssh RSA public key
+# USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
 # Options:
 #
 # USE_LIVECD_KERNEL - 1 to use livecd kernel (saves time) or 0 to build kernel (takes time)
 # SSH_PUBLIC_KEY - ssh public key, pass contents of `cat ~/.ssh/id_rsa.pub` for example
 # ROOT_PASSWORD - root password, only SSH key-based authentication will work if not set
 #
-# livecd kernel with root password
-# USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
-#
-# Gentoo's binary kernel with ssh public key
-# USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+# Notes:
+# This script will _only_ work on a mbr/msdos partition table, not GPT. 
+# This script does not work with UEFI. only Legacy BIOS.
 ##
 
 set -e
@@ -29,14 +32,17 @@ set -e
 GENTOO_MIRROR="http://distfiles.gentoo.org"
 
 GENTOO_ARCH="amd64"
-# Default is hardened server build with OpenRC.
-# Other options are amd64-openrc, amd64-nomultilib-openrc, amd64-hardened-openrc,
-# and64-hardened-selinux-openrc, and amd-desktop-openrc
-GENTOO_STAGE3="	amd64-hardened-nomultilib-openrc"
+# Default is amd64 build with OpenRC.
+# Other options are amd64-desktop-openrc, amd64-nomultilib-openrc,
+# amd64-hardened-selinux-openrc, amd64-musl, md64-musl-hardened, 
+# amd64-hardened-selinux-openrc, amd64-hardened-openrc, 
+# amd64-hardened-nomultilib-selinux-openrc, and amd64-hardened-nomultilib-openrc
+GENTOO_STAGE3="	amd64-openrc"
 
 # Default is set for virtual machines.
 # /dev/sda is standard for most IDE/SATA drives.
-# /dev/nvme0n1 is standard for most NVME and eMMC drives.
+# /dev/nvme0n1 is standard for NVME drives.
+# /dev/mmcblk0 is standard for most eMMC and SD drives
 TARGET_DISK=/dev/vda
 
 TARGET_BOOT_SIZE=256M
@@ -163,29 +169,20 @@ mv /etc/portage/make.conf /etc/portage/default
 mkdir /etc/portage/make.conf
 mv /etc/portage/default /etc/portage/make.conf
 
-####################################################################################
-# This can be commented out, if you have issues with russian exports, 
-# or don't want binary packages.
-echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\"" >> /etc/portage/make.conf/binhost
 # required to allow for linux-firmware (required for binary kernel).
 echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
-# entirely optional, but extremely nice to have. Comment out next two lines if you disagree.
-emerge -G eix
-eix-sync
 
 if [ "$USE_LIVECD_KERNEL" = 0 ]; then
     echo "### Installing kernel..."
     
-    echo "sys-kernel/gentoo-kernel-bin ~amd64" >> /etc/portage/package.accept_keywords/kernel
-    echo "virtual/dist-kernel ~amd64" >> /etc/portage/package.accept_keywords/kernel
-    emerge -g sys-kernel/linux-firmware installkernel-gentoo
-    emerge -g virtual/dist-kernel sys-kernel/gentoo-kernel-bin
-    emerge -g sys-kernel/genkernel
+    emerge sys-kernel/linux-firmware installkernel-gentoo
+    emerge virtual/dist-kernel sys-kernel/gentoo-kernel-bin
+    emerge sys-kernel/genkernel
 fi
 
 echo "### Installing bootloader..."
 
-emerge -g grub
+emerge grub
 
 cat >> /etc/portage/make.conf/default << IEND
 
