@@ -127,9 +127,13 @@ echo "### Mounting proc/sys/dev..."
 
 mount -t proc none /mnt/gentoo/proc
 mount -t sysfs none /mnt/gentoo/sys
-mount -o bind /dev /mnt/gentoo/dev
+mount --rbind /dev /mnt/gentoo/dev
 mount -o bind /dev/pts /mnt/gentoo/dev/pts
 mount -o bind /dev/shm /mnt/gentoo/dev/shm
+mount --bind /run /mnt/gentoo/run
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm
+chmod 1777 /dev/shm /run/shm
 
 echo "### Changing root..."
 
@@ -152,6 +156,9 @@ echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\""
 mkdir -p /etc/portage/repos.conf
 cp -f /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 emerge-webrsync
+echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
+emerge -G eix
+eix-sync
 
 echo "### Installing kernel binary..."
 
@@ -196,6 +203,7 @@ echo "### Configuring network..."
 
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
+emerge -G net-misc/dhcpcd
 
 if [ -z "$ROOT_PASSWORD" ]; then
     echo "### Removing root password..."
