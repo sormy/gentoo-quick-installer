@@ -20,7 +20,7 @@
 # livecd kernel with root password
 # USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
 #
-# Compiled kernel with ssh public key
+# Gentoo's binary kernel with ssh public key
 # USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
 ##
 
@@ -29,8 +29,14 @@ set -e
 GENTOO_MIRROR="http://distfiles.gentoo.org"
 
 GENTOO_ARCH="amd64"
+# Default is hardened server build with OpenRC.
+# Other options are amd64-openrc, amd64-nomultilib-openrc, amd64-hardened-openrc,
+# and64-hardened-selinux-openrc, and amd-desktop-openrc
 GENTOO_STAGE3="	amd64-hardened-nomultilib-openrc"
 
+# Default is set for virtual machines.
+# /dev/sda is standard for most IDE/SATA drives.
+# /dev/nvme0n1 is standard for most NVME and eMMC drives.
 TARGET_DISK=/dev/vda
 
 TARGET_BOOT_SIZE=256M
@@ -110,11 +116,6 @@ if [ "$USE_LIVECD_KERNEL" != 0 ]; then
     cp -vR "/lib/modules/$LIVECD_KERNEL_VERSION" "/mnt/gentoo/lib/modules/"
 fi
 
-echo "### Installing kernel configuration..."
-
-mkdir -p /mnt/gentoo/etc/kernels
-#cp -v /etc/kernels/* /mnt/gentoo/etc/kernels
-
 echo "### Copying network options..."
 
 cp -v /etc/resolv.conf /mnt/gentoo/etc/
@@ -161,25 +162,25 @@ emerge-webrsync
 mv /etc/portage/make.conf /etc/portage/default
 mkdir /etc/portage/make.conf
 mv /etc/portage/default /etc/portage/make.conf
+
+####################################################################################
+# This can be commented out, if you have issues with russian exports, 
+# or don't want binary packages.
 echo "PORTAGE_BINHOST=\"https://mirror.yandex.ru/calculate/grp/x86_64\"" >> /etc/portage/make.conf/binhost
+# required to allow for linux-firmware (required for binary kernel).
 echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
+# entirely optional, but extremely nice to have. Comment out next two lines if you disagree.
 emerge -G eix
 eix-sync
-
-echo "### Installing kernel binary..."
 
 if [ "$USE_LIVECD_KERNEL" = 0 ]; then
     echo "### Installing kernel..."
     
     echo "sys-kernel/gentoo-kernel-bin ~amd64" >> /etc/portage/package.accept_keywords/kernel
     echo "virtual/dist-kernel ~amd64" >> /etc/portage/package.accept_keywords/kernel
-    echo "sys-kernel/genkernel -firmware" > /etc/portage/package.use/genkernel
-    echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use/genkernel
     emerge -g sys-kernel/linux-firmware installkernel-gentoo
     emerge -g virtual/dist-kernel sys-kernel/gentoo-kernel-bin
     emerge -g sys-kernel/genkernel
-
-#    genkernel all --kernel-config=$(find /etc/kernels -type f -iname 'kernel-config-*' | head -n 1)
 fi
 
 echo "### Installing bootloader..."
