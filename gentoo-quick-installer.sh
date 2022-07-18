@@ -37,7 +37,7 @@ GENTOO_ARCH="amd64"
 # amd64-hardened-selinux-openrc, amd64-musl, md64-musl-hardened, 
 # amd64-hardened-selinux-openrc, amd64-hardened-openrc, 
 # amd64-hardened-nomultilib-selinux-openrc, and amd64-hardened-nomultilib-openrc
-GENTOO_STAGE3="	amd64-openrc"
+GENTOO_STAGE3="amd64-openrc"
 
 # Default is set for virtual machines.
 # /dev/sda is standard for most IDE/SATA drives.
