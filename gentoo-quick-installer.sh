@@ -11,11 +11,29 @@
 # export OPTION2=VALUE2
 # ./gentoo-quick-installer.sh
 #
+# Bare metal install on /dev/sda with root password:
+# ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+#
+# Remote VM server install with ssh RSA public key:
+# TARGET_DISK=/dev/vda SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+#
 # Options:
 #
-# USE_LIVECD_KERNEL - 1 to use livecd kernel (saves time) or 0 to build kernel (takes time)
 # SSH_PUBLIC_KEY - ssh public key, pass contents of `cat ~/.ssh/id_rsa.pub` for example
 # ROOT_PASSWORD - root password, only SSH key-based authentication will work if not set
+# TARGET_DISK - Default is set for IDE/SATA drives.
+#     /dev/vda is standard for most Virtual Machines.
+#     /dev/nvme0n1 is standard for NVME drives.
+#     /dev/mmcblk0 is standard for most eMMC and SD drives
+# GENTOO_ARCH - Default is amd64 build with OpenRC.
+#     Other options are amd64-desktop-openrc, amd64-nomultilib-openrc,
+#     amd64-hardened-selinux-openrc, amd64-musl, md64-musl-hardened, 
+#     amd64-hardened-selinux-openrc, amd64-hardened-openrc, 
+#     amd64-hardened-nomultilib-selinux-openrc, and amd64-hardened-nomultilib-openrc
+# 
+# Notes:
+# This script will _only_ work on a mbr/msdos partition table, not GPT. 
+# This script does not work with UEFI. only Legacy BIOS.
 ##
 
 set -e
@@ -23,16 +41,13 @@ set -e
 GENTOO_MIRROR="http://distfiles.gentoo.org"
 
 GENTOO_ARCH="amd64"
-GENTOO_STAGE3="amd64"
+GENTOO_STAGE3="${GENTOO_STAGE3:-amd64-openrc}"
+TARGET_DISK=${TARGET_DISK:-/dev/sda}
 
-TARGET_DISK=/dev/sda
-
-TARGET_BOOT_SIZE=100M
+TARGET_BOOT_SIZE=256M
 TARGET_SWAP_SIZE=1G
 
 GRUB_PLATFORMS=pc
-
-USE_LIVECD_KERNEL=${USE_LIVECD_KERNEL:-1}
 
 SSH_PUBLIC_KEY=${SSH_PUBLIC_KEY:-}
 ROOT_PASSWORD=${ROOT_PASSWORD:-}
@@ -94,21 +109,6 @@ tar xvpf "$(basename "$STAGE3_URL")" --xattrs-include='*.*' --numeric-owner
 
 rm -fv "$(basename "$STAGE3_URL")"
 
-if [ "$USE_LIVECD_KERNEL" != 0 ]; then
-    echo "### Installing LiveCD kernel..."
-
-    LIVECD_KERNEL_VERSION=$(cut -d " " -f 3 < /proc/version)
-
-    cp -v "/mnt/cdrom/boot/gentoo" "/mnt/gentoo/boot/vmlinuz-$LIVECD_KERNEL_VERSION"
-    cp -v "/mnt/cdrom/boot/gentoo.igz" "/mnt/gentoo/boot/initramfs-$LIVECD_KERNEL_VERSION.img"
-    cp -vR "/lib/modules/$LIVECD_KERNEL_VERSION" "/mnt/gentoo/lib/modules/"
-fi
-
-echo "### Installing kernel configuration..."
-
-mkdir -p /mnt/gentoo/etc/kernels
-cp -v /etc/kernels/* /mnt/gentoo/etc/kernels
-
 echo "### Copying network options..."
 
 cp -v /etc/resolv.conf /mnt/gentoo/etc/
@@ -125,11 +125,15 @@ END
 
 echo "### Mounting proc/sys/dev..."
 
-mount -t proc none /mnt/gentoo/proc
-mount -t sysfs none /mnt/gentoo/sys
-mount -o bind /dev /mnt/gentoo/dev
-mount -o bind /dev/pts /mnt/gentoo/dev/pts
-mount -o bind /dev/shm /mnt/gentoo/dev/shm
+mount --types proc /proc /mnt/gentoo/proc
+mount --rbind /sys /mnt/gentoo/sys
+mount --rbind /dev /mnt/gentoo/dev
+mount --bind /run /mnt/gentoo/run
+
+echo "### Fixing possible LiveCD issues..."
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm
+chmod 1777 /dev/shm /run/shm
 
 echo "### Changing root..."
 
@@ -148,27 +152,23 @@ echo "### Installing portage..."
 mkdir -p /etc/portage/repos.conf
 cp -f /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 emerge-webrsync
+mv /etc/portage/make.conf /etc/portage/default
+mkdir /etc/portage/make.conf
+mv /etc/portage/default /etc/portage/make.conf
 
-echo "### Installing kernel sources..."
+echo "### Installing kernel..."
 
-emerge sys-kernel/gentoo-sources
+# required to allow for linux-firmware (required for binary kernel).
+echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default    
 
-if [ "$USE_LIVECD_KERNEL" = 0 ]; then
-    echo "### Installing kernel..."
-
-    echo "sys-kernel/genkernel -firmware" > /etc/portage/package.use/genkernel
-    echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use/genkernel
-
-    emerge sys-kernel/genkernel
-
-    genkernel all --kernel-config=$(find /etc/kernels -type f -iname 'kernel-config-*' | head -n 1)
-fi
+emerge sys-kernel/linux-firmware installkernel-gentoo
+emerge virtual/dist-kernel sys-kernel/gentoo-kernel-bin
 
 echo "### Installing bootloader..."
 
 emerge grub
 
-cat >> /etc/portage/make.conf << IEND
+cat >> /etc/portage/make.conf/default << IEND
 
 # added by gentoo installer
 GRUB_PLATFORMS="$GRUB_PLATFORMS"
@@ -189,6 +189,7 @@ echo "### Configuring network..."
 
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
+emerge net-misc/dhcpcd
 
 if [ -z "$ROOT_PASSWORD" ]; then
     echo "### Removing root password..."

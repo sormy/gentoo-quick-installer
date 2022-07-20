@@ -10,19 +10,25 @@ Anyway, it is simple, minimalistic, easy to read and easy to tune for your needs
 
 Read more: http://www.artembutusov.com/gentoo-linux-quick-installer-script/
 
-## Contribution
-
-For almost any change please consider doing a few tests below.
-
-Images should be bootable and should allow to login using root password-auth or password-less auth via SSH.
+## Usage
 
 ```shell
-# livecd kernel with root password
-USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+# Bare metal install on /dev/sda with root password:
+ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
 
-# Compiled kernel with ssh public key
-USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+# Remote VM server install with ssh RSA public key:
+TARGET_DISK=/dev/vda SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
 ```
+
+## Limitations
+* Does not work with UEFI. Legacy BIOS and VM use only.
+* Does not work with GPT partitions. MSDOS/MBR only.
+
+## Contribution
+
+For almost any change please consider doing a few tests using both commands above.
+
+Images should be bootable and should allow to login using root password-auth or password-less auth via SSH.
 
 ## Copyright
 
