@@ -13,11 +13,11 @@ Read more: http://www.artembutusov.com/gentoo-linux-quick-installer-script/
 ## Usage
 
 ```shell
-# livecd kernel with root password
-USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+# Bare metal install on /dev/sda with root password:
+ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
 
-# Gentoo binary kernel with ssh public key
-USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+# Remote VM server install with ssh RSA public key:
+TARGET_DISK=/dev/vda SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
 ```
 
 ## Limitations

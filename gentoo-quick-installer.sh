@@ -11,17 +11,26 @@
 # export OPTION2=VALUE2
 # ./gentoo-quick-installer.sh
 #
-# livecd kernel with root password
-# USE_LIVECD_KERNEL=1 ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
+# Bare metal install on /dev/sda with root password:
+# ROOT_PASSWORD=Gentoo123 ./gentoo-quick-installer.sh
 #
-# Gentoo's binary kernel with ssh RSA public key
-# USE_LIVECD_KERNEL=0 SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+# Remote VM server install with ssh RSA public key:
+# TARGET_DISK=/dev/vda SSH_PUBLIC_KEY=$(cat id_rsa.pub) ./gentoo-quick-installer.sh
+#
 # Options:
 #
-# USE_LIVECD_KERNEL - 1 to use livecd kernel (saves time) or 0 to build kernel (takes time)
 # SSH_PUBLIC_KEY - ssh public key, pass contents of `cat ~/.ssh/id_rsa.pub` for example
 # ROOT_PASSWORD - root password, only SSH key-based authentication will work if not set
-#
+# TARGET_DISK - Default is set for IDE/SATA drives.
+#     /dev/vda is standard for most Virtual Machines.
+#     /dev/nvme0n1 is standard for NVME drives.
+#     /dev/mmcblk0 is standard for most eMMC and SD drives
+# GENTOO_ARCH - Default is amd64 build with OpenRC.
+#     Other options are amd64-desktop-openrc, amd64-nomultilib-openrc,
+#     amd64-hardened-selinux-openrc, amd64-musl, md64-musl-hardened, 
+#     amd64-hardened-selinux-openrc, amd64-hardened-openrc, 
+#     amd64-hardened-nomultilib-selinux-openrc, and amd64-hardened-nomultilib-openrc
+# 
 # Notes:
 # This script will _only_ work on a mbr/msdos partition table, not GPT. 
 # This script does not work with UEFI. only Legacy BIOS.
@@ -32,25 +41,13 @@ set -e
 GENTOO_MIRROR="http://distfiles.gentoo.org"
 
 GENTOO_ARCH="amd64"
-# Default is amd64 build with OpenRC.
-# Other options are amd64-desktop-openrc, amd64-nomultilib-openrc,
-# amd64-hardened-selinux-openrc, amd64-musl, md64-musl-hardened, 
-# amd64-hardened-selinux-openrc, amd64-hardened-openrc, 
-# amd64-hardened-nomultilib-selinux-openrc, and amd64-hardened-nomultilib-openrc
-GENTOO_STAGE3="amd64-openrc"
-
-# Default is set for virtual machines.
-# /dev/sda is standard for most IDE/SATA drives.
-# /dev/nvme0n1 is standard for NVME drives.
-# /dev/mmcblk0 is standard for most eMMC and SD drives
-TARGET_DISK=/dev/vda
+GENTOO_STAGE3="${GENTOO_STAGE3:-amd64-openrc}"
+TARGET_DISK=${TARGET_DISK:-/dev/sda}
 
 TARGET_BOOT_SIZE=256M
 TARGET_SWAP_SIZE=1G
 
 GRUB_PLATFORMS=pc
-
-USE_LIVECD_KERNEL=${USE_LIVECD_KERNEL:-1}
 
 SSH_PUBLIC_KEY=${SSH_PUBLIC_KEY:-}
 ROOT_PASSWORD=${ROOT_PASSWORD:-}
@@ -112,16 +109,6 @@ tar xvpf "$(basename "$STAGE3_URL")" --xattrs-include='*.*' --numeric-owner
 
 rm -fv "$(basename "$STAGE3_URL")"
 
-if [ "$USE_LIVECD_KERNEL" != 0 ]; then
-    echo "### Installing LiveCD kernel..."
-
-    LIVECD_KERNEL_VERSION=$(cut -d " " -f 3 < /proc/version)
-
-    cp -v "/mnt/cdrom/boot/gentoo" "/mnt/gentoo/boot/vmlinuz-$LIVECD_KERNEL_VERSION"
-    cp -v "/mnt/cdrom/boot/gentoo.igz" "/mnt/gentoo/boot/initramfs-$LIVECD_KERNEL_VERSION.img"
-    cp -vR "/lib/modules/$LIVECD_KERNEL_VERSION" "/mnt/gentoo/lib/modules/"
-fi
-
 echo "### Copying network options..."
 
 cp -v /etc/resolv.conf /mnt/gentoo/etc/
@@ -169,15 +156,13 @@ mv /etc/portage/make.conf /etc/portage/default
 mkdir /etc/portage/make.conf
 mv /etc/portage/default /etc/portage/make.conf
 
-# required to allow for linux-firmware (required for binary kernel).
-echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default
+echo "### Installing kernel..."
 
-if [ "$USE_LIVECD_KERNEL" = 0 ]; then
-    echo "### Installing kernel..."
-    
-    emerge sys-kernel/linux-firmware installkernel-gentoo
-    emerge virtual/dist-kernel sys-kernel/gentoo-kernel-bin
-fi
+# required to allow for linux-firmware (required for binary kernel).
+echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf/default    
+
+emerge sys-kernel/linux-firmware installkernel-gentoo
+emerge virtual/dist-kernel sys-kernel/gentoo-kernel-bin
 
 echo "### Installing bootloader..."
 
